@@ -112,7 +112,7 @@ public class OverlayService extends Service {
         lp.gravity = Gravity.TOP | Gravity.START;
         lp.y = statusBarHeight;
 
-        overlayView = getLayoutInflater().inflate(R.layout.overlay_lock, null);
+        overlayView = android.view.LayoutInflater.from(this).inflate(R.layout.overlay_lock, null);
         overlayView.findViewById(R.id.overlaySkull).setOnClickListener(v -> onKillTap());
         try {
             windowManager.addView(overlayView, lp);

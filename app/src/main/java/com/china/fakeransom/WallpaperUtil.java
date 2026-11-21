@@ -43,8 +43,7 @@ final class WallpaperUtil {
         } catch (Throwable ignored) {
         }
         try {
-            android.graphics.drawable.Drawable d = wm.getBitmapDrawable(which);
-            if (d == null) d = wm.getDrawable();
+            android.graphics.drawable.Drawable d = wm.getDrawable();
             if (d instanceof android.graphics.drawable.BitmapDrawable) {
                 return ((android.graphics.drawable.BitmapDrawable) d).getBitmap();
             }
