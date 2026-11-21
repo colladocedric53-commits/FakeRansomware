@@ -15,15 +15,20 @@ import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.widget.Button;
+import android.view.WindowManager;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -141,6 +146,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
 
         skullGlyph = findViewById(R.id.skullGlyph);
         statusText = findViewById(R.id.statusText);
+        terminalScroll = findViewById(R.id.terminalScroll);
         terminalText = findViewById(R.id.terminalText);
         countdownText = findViewById(R.id.countdownText);
         ransomNote = findViewById(R.id.ransomNote);
@@ -201,19 +207,9 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
                 missing.add(p);
             }
-        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-            needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
-                != PackageManager.PERMISSION_GRANTED) {
-            needed.add(Manifest.permission.READ_CONTACTS);
-        }
-
-        if (needed.isEmpty()) {
-            beginDemo();
-        } else {
-            ActivityCompat.requestPermissions(this, needed.toArray(new String[0]), PERMISSION_REQUEST);
+        if (!missing.isEmpty()) {
+            ActivityCompat.requestPermissions(this, missing.toArray(new String[0]), 1337);
         }
     }
 
@@ -370,21 +366,9 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         ransomNote.setVisibility(View.GONE);
         terminalScroll.setVisibility(View.VISIBLE);
         terminalText.setText("");
-        progressBar.setProgress(0);
 
-        List<String> lines = new ArrayList<>();
-        lines.add("[DEMO] Starting local security awareness exercise");
-        lines.add("[DEMO] Checking granted read-only permissions");
-        addPhotoNames(lines);
-        addDownloadNames(lines);
-        addContactNames(lines);
-        lines.add("[SIMULATED] File encryption stage would begin here");
-        lines.add("[SIMULATED] No file was renamed, encrypted, or modified");
-        lines.add("[SIMULATED] No data was uploaded or transmitted");
-        lines.add("[SAFE] Demonstration complete");
-
-        if (soundEnabled) startWarningAudio();
         for (int i = 0; i < lines.size(); i++) {
+            final String line = lines.get(i);
             final int step = i + 1;
             final boolean last = (i == lines.size() - 1);
             mainHandler.postDelayed(() -> {
