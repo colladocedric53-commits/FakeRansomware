@@ -1,4 +1,4 @@
-# FakeRansom (Educational Simulation)
+# FakeRansom Demo
 
 Full-intensity ransomware Encounter Simulator for security-awareness workshops.
 Runs the complete psychological pressure arc a mobile ransomware victim feels —
@@ -64,7 +64,7 @@ camera, and if device admin is active opens the admin removal screen:
 
 ## Build
 
-```
+```bash
 ./gradlew assembleDebug
 ```
 

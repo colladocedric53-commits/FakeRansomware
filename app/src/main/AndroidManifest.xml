@@ -11,22 +11,18 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <application
-        android:label="SystemUpdate"
-        android:icon="@android:drawable/ic_dialog_alert"
+        android:label="FakeRansom Demo"
+        android:icon="@android:drawable/ic_dialog_info"
         android:theme="@style/Theme.AppCompat.NoActionBar">
 
         <activity
             android:name=".FakeRansomActivity"
             android:exported="true"
-            android:screenOrientation="portrait"
-            android:launchMode="singleTask"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true">
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
