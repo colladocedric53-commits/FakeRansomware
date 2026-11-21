@@ -7,7 +7,18 @@ import android.media.AudioTrack;
 
 final class SirenPlayer {
 
+    private static final int BASE_RATE = 8000;
+    private static final SirenPlayer INSTANCE = new SirenPlayer();
+
     private AudioTrack track;
+    private float rateMultiplier = 1.0f;
+
+    private SirenPlayer() {
+    }
+
+    static SirenPlayer get() {
+        return INSTANCE;
+    }
 
     synchronized void start() {
         if (track != null) {
@@ -15,12 +26,11 @@ final class SirenPlayer {
             return;
         }
         try {
-            int sampleRate = 8000;
             int seconds = 3;
-            int frames = sampleRate * seconds;
+            int frames = BASE_RATE * seconds;
             short[] pcm = new short[frames];
             for (int i = 0; i < frames; i++) {
-                double t = i / (double) sampleRate;
+                double t = i / (double) BASE_RATE;
                 double f = 520 + 260 * Math.sin(2 * Math.PI * t / 1.2);
                 double v = Math.sin(2 * Math.PI * f * t);
                 pcm[i] = (short) (Math.signum(v) * 21000);
@@ -30,7 +40,7 @@ final class SirenPlayer {
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build();
             AudioFormat fmt = new AudioFormat.Builder()
-                    .setSampleRate(sampleRate)
+                    .setSampleRate(BASE_RATE)
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build();
@@ -42,6 +52,16 @@ final class SirenPlayer {
             track.play();
         } catch (Throwable t) {
             track = null;
+        }
+    }
+
+    synchronized void applyRamp(float multiplier) {
+        rateMultiplier = Math.max(1.0f, Math.min(multiplier, 1.35f));
+        if (track != null) {
+            try {
+                track.setPlaybackRate((int) (BASE_RATE * rateMultiplier));
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -72,5 +92,6 @@ final class SirenPlayer {
             }
             track = null;
         }
+        rateMultiplier = 1.0f;
     }
 }
