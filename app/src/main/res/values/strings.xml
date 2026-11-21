@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="admin_description">Device administration used by the FakeRansom educational simulation to lock the screen during the demo.</string>
+</resources>

@@ -1,47 +1,66 @@
 # FakeRansom (Educational Simulation)
 
-Demonstration app used in security-awareness workshops to show what a mobile
-ransomware encounter **feels** like on an Android device. It stages the full
-pressure experience — lock screen takeover, alarm siren, terminal-style
-"encryption" log, ransom note with countdown — while performing **zero harm**:
+Full-intensity ransomware Encounter Simulator for security-awareness workshops.
+Runs the complete psychological pressure arc a mobile ransomware victim feels —
+takeover, lockdown, "encryption", extortion, fake reflash — while performing
+**zero harm**:
 
-- **No files are encrypted, modified, or deleted.** Real names may be listed in
-  the terminal log, but nothing is written anywhere.
-- **No network access.** The app has no INTERNET permission.
-- The Bitcoin address, support e-mail, and `.demo` domain in the ransom note are
-  placeholders. Nothing is collected or transmitted.
+- No files are encrypted, modified, or deleted, ever.
+- No network access at all — the app has no INTERNET permission. "Uploads" in
+  the terminal log are theatre lines.
+- The Bitcoin address, support e-mail and `.demo` domain are placeholders.
+- Camera is used read-only as a ghost preview behind the UI. No frame is
+  captured, stored, or transmitted.
 
-## What it demonstrates
+## The experience (what a participant feels)
 
-Techniques real mobile ransomware uses, staged safely with standard UI APIs:
+1. **Silent persistence** — after any app update or reboot, a high-priority
+   notification with a full-screen intent pulls the lock screen up as
+   "System update required".
+2. **Lockdown** — immersive fullscreen (no status bar, no navigation), back
+   button mocked, screenshots and the recents thumbnail blacked out
+   (`FLAG_SECURE`), screen kept on at max brightness, the app pulls itself back
+   in front of the home screen ~0.7 s after the user escapes, and once device
+   administration is granted (demanded by the ransom note ~8 s in) the screen
+   locks with `lockNow()` and the activity reappears **above the keyguard**.
+3. **Sensory pressure** — square-wave klaxon siren synthesized live and looped
+   on the alarm channel, alarm + media volumes forced to max every 3 s,
+   repeating shock-pattern vibration, red/blue police-style border strobe.
+4. **Encryption theatre** — a green-on-black terminal enumerates the device's
+   real photo names and Downloads (read-only via MediaStore/filesystem) plus
+   real contact names, "encrypts" them with fake AES-256 + RSA-4096 labels,
+   logs keylogger/camera/mic capture lines, then displays a victim ID derived
+   from `ANDROID_ID` and a session key.
+5. **The note** — 48-hour deletion countdown, payment instructions (all fake),
+   "we have your face", tap-anywhere "RESTORE ACCESS" that leads into the
+   device-admin dialog. Declining it: "ACCESS DENIED BY ADMINISTRATOR".
+6. **Fake firmware reflash** — ~2 minutes in, the screen goes black and types
+   `wiping /data ... ok`, then "restores" straight back with
+   "RESTORE FAILED — ATTEMPT 2/3" and the siren resumes. Up to 3 attempts.
 
-| Technique | How it is simulated |
-|---|---|
-| Device takeover at boot | `BOOT_COMPLETED` / `MY_PACKAGE_REPLACED` receiver posts a full-screen-intent notification that pulls the lock screen up (`showWhenLocked`, `turnScreenOn`) |
-| Lock screen | Immersive sticky fullscreen, status bar and navigation hidden, back button blocked, `REORDER_TASKS` + `moveTaskToFront` pulls the app back over the home screen when the user gets out |
-| Pressure | Looping siren played on the alarm audio channel (`AudioAttributes.USAGE_ALARM`), repeating waveform vibration, screen kept on |
-| Encryption theatre | Terminal-style log enumerates real photos/downloads (via MediaStore, read-only) and contacts (read-only), showing them with a fake `.locked` suffix, fake session key, fake victim ID from `ANDROID_ID` |
-| Extortion UI | Ransom note with countdown timer and on-chain payment instructions (all fake) |
+## Kill switch (presenter — memorize one of these)
 
-## Escape hatch (presenter)
+Any of these instantly ends the sim, stops siren/vibration, releases the
+camera, and if device admin is active opens the admin removal screen:
 
-Tap the **yellow countdown clock 5 times within 3 seconds**. This exits the
-simulation instantly and releases the siren and vibration. It is deliberately
-ungreasy so it does not break the illusion live, but is documented here for the
-presenter only.
+- Tap the small grey **skull (☠)** in the top-left corner **7 times within 4 s**.
+- **Press and hold the big red "SYSTEM LOCKED / YOUR DEVICE IS LOCKED"
+  headline for 6 seconds.**
+- The sim force-releases itself after **10 minutes** no matter what.
+- Failsafe: `adb shell am force-stop com.china.fakeransom`.
 
-If the app is ever stuck: `adb shell am force-stop com.china.fakeransom`.
-
-## Permissions requested and why
+## Permissions and why
 
 | Permission | Purpose |
 |---|---|
-| `VIBRATE` | Alarm vibration |
-| `RECEIVE_BOOT_COMPLETED`, `USE_FULL_SCREEN_INTENT`, `POST_NOTIFICATIONS` | Boot-time lock-screen takeover demo |
-| `REORDER_TASKS` | Pull the demo back to the foreground when the user escapes to the home screen |
-| `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` | List real photo/download **names** for the encryption log (read-only) |
-| `READ_CONTACTS` | Show real contact names in the log (read-only) |
-| `SYSTEM_ALERT_WINDOW` | Declared for completeness in lessons on overlay attacks; not actively used |
+| `VIBRATE` | Shock-pattern vibration |
+| `RECEIVE_BOOT_COMPLETED`, `USE_FULL_SCREEN_INTENT`, `POST_NOTIFICATIONS` | Lock-screen takeover at boot/after update |
+| `REORDER_TASKS` | Pull the sim back over the home screen |
+| `WAKE_LOCK` | Keep the screen on |
+| `CAMERA` | Front-camera ghost preview behind the UI (no capture) |
+| `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` | List real photo/download **names** in the terminal (read-only) |
+| `READ_CONTACTS` | Show real contact names in the terminal (read-only) |
+| Device admin (`force-lock`) | `lockNow()` screen lock during the "RESTORE ACCESS" beat |
 
 ## Build
 
@@ -49,8 +68,9 @@ If the app is ever stuck: `adb shell am force-stop com.china.fakeransom`.
 ./gradlew assembleDebug
 ```
 
-The GitHub Actions workflow uploads the APK as the `FakeRansom-APK` artifact.
+CI uploads the APK as the `FakeRansom-APK` artifact.
 
-**Never open this app on a device you do not own or are not authorised to demo
-on** — to the victim unaware of the escape hatch, the experience is
-indistinguishable from the real thing in the moment.
+**Run it only on devices you own or are authorized to demo on**, and always
+brief participants beforehand. To an unprepared person, mid-scene, this is
+indistinguishable from the real thing — that is precisely the point, and
+precisely why the kill switch exists.
