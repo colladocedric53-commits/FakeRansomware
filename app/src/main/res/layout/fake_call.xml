@@ -1,80 +1,228 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1a0000"
-    android:gravity="center_horizontal"
-    android:orientation="vertical">
+    android:background="@drawable/bg_call_gradient">
 
     <TextView
         android:id="@+id/callSkull"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="start"
+        android:layout_gravity="start|top"
         android:layout_margin="16dp"
         android:alpha="0.30"
         android:text="☠"
         android:textColor="#ffffff"
         android:textSize="14sp"/>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="90dp"
-        android:text="INCOMING CALL"
-        android:textColor="#cccccc"
-        android:textSize="16sp"/>
+    <LinearLayout
+        android:id="@+id/incomingView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
 
-    <TextView
-        android:layout_width="160dp"
-        android:layout_height="160dp"
-        android:layout_marginTop="50dp"
-        android:background="@android:color/darker_gray"
-        android:gravity="center"
-        android:text="☎"
-        android:textColor="#000000"
-        android:textSize="72sp"/>
+        <TextView
+            android:id="@+id/incomingLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="72dp"
+            android:gravity="center"
+            android:text="Incoming call"
+            android:textColor="#b8b8b8"
+            android:textSize="16sp"/>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:text="UNKNOWN"
-        android:textColor="#ffffff"
-        android:textSize="38sp"
-        android:textStyle="bold"/>
+        <FrameLayout
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:layout_marginTop="64dp"
+            android:background="@drawable/circle_avatar"
+            android:gravity="center">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:fontFamily="monospace"
-        android:text="+1 (917) 555-0134 — TRACE ACTIVE"
-        android:textColor="#ffcc00"
-        android:textSize="15sp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="U"
+                android:textColor="#e0e0e0"
+                android:textSize="64sp"
+                android:textStyle="bold"/>
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:text="UNKNOWN"
+            android:textColor="#ffffff"
+            android:textSize="38sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="sans-serif-light"
+            android:text="+1 (917) 555-0134"
+            android:textColor="#b8b8b8"
+            android:textSize="18sp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Authorized voice — line encrypted"
+            android:textColor="#6f6f6f"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-light"/>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="230dp">
+
+            <PulseView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/declineBtn"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_marginEnd="72dp"
+                    android:background="@drawable/circle_red"
+                    android:contentDescription="Decline"
+                    android:src="@drawable/ic_call_end"
+                    android:scaleType="center"/>
+
+                <ImageButton
+                    android:id="@+id/acceptBtn"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:background="@drawable/circle_green"
+                    android:contentDescription="Answer"
+                    android:src="@drawable/ic_call"
+                    android:scaleType="center"/>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/inCallView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="70dp"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_call_gradient"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-        <Button
-            android:id="@+id/declineBtn"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="50dp"
-            android:backgroundTint="#aa0000"
-            android:text="DECLINE"
-            android:textColor="#ffffff"/>
+            android:layout_marginTop="72dp"
+            android:text="UNKNOWN"
+            android:textColor="#ffffff"
+            android:textSize="38sp"
+            android:textStyle="bold"/>
 
-        <Button
-            android:id="@+id/acceptBtn"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:backgroundTint="#33691e"
-            android:text="ANSWER"
-            android:textColor="#ffffff"/>
+            android:layout_marginTop="8dp"
+            android:fontFamily="sans-serif-light"
+            android:text="+1 (917) 555-0134"
+            android:textColor="#b8b8b8"
+            android:textSize="18sp"/>
+
+        <TextView
+            android:id="@+id/callTimer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="sans-serif-light"
+            android:text="00:00"
+            android:textColor="#9a9a9a"
+            android:textSize="16sp"/>
+
+        <TextView
+            android:id="@+id/callCaption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:alpha="0.0"
+            android:fontFamily="sans-serif-light"
+            android:text=""
+            android:textColor="#ffcc00"
+            android:textSize="15sp"/>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="40dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnMute"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_marginEnd="26dp"
+                android:background="@drawable/circle_avatar"
+                android:contentDescription="Mute"
+                android:src="@drawable/ic_mic_off"
+                android:scaleType="center"/>
+
+            <ImageButton
+                android:id="@+id/btnPad"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_marginEnd="26dp"
+                android:background="@drawable/circle_avatar"
+                android:contentDescription="Keypad"
+                android:src="@drawable/ic_dialpad"
+                android:scaleType="center"/>
+
+            <ImageButton
+                android:id="@+id/btnSpeaker"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:background="@drawable/circle_avatar"
+                android:contentDescription="Speaker"
+                android:src="@drawable/ic_volume_up"
+                android:scaleType="center"/>
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="56dp">
+
+            <ImageButton
+                android:id="@+id/hangupBtn"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:background="@drawable/circle_red"
+                android:contentDescription="End call"
+                android:src="@drawable/ic_call_end"
+                android:scaleType="center"/>
+        </FrameLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>

@@ -61,7 +61,7 @@ takeover, lockdown, "encryption", extortion, fake reflash — while performing
 14. **Payment portal** — fake BTC send screen with a procedurally drawn QR
     (no library), live "confirmations" counter and wallet expiry; back returns
     to the note.
-15. **Fake incoming call** — full-screen ring UI, klaxon ringback at max
+15. **Fake incoming call** — realistic dialer UI (avatar, number, ripple around Answer), dual-tone ring with ring-pattern vibration; answering switches to an in-call screen with live timer, line hiss, mute/speaker controls and a scripted distorted-voice monologue with subtitles; the line cuts itself at the end
     escalation; decline/answer both return to the sim with taunts.
 16. **Escalation ramp** — siren playback rate +3.8%/20 s (up to +34%),
     vibration gap tightens 1.5s -> 0.3s, border strobe 260 ms -> 120 ms,

