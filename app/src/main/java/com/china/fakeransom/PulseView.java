@@ -4,9 +4,10 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.os.SystemClock;
+import android.util.AttributeSet;
 import android.view.View;
 
-final class PulseView extends View {
+public class PulseView extends View {
 
     private static final long PERIOD_MS = 1800;
     private static final int RINGS = 3;
@@ -19,8 +20,17 @@ final class PulseView extends View {
         }
     };
 
-    PulseView(Context context) {
+    public PulseView(Context context) {
         super(context);
+        init();
+    }
+
+    public PulseView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        init();
+    }
+
+    private void init() {
         postOnAnimation(ticker);
     }
 

@@ -9,10 +9,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <com.china.fakeransom.FxBackgroundView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#E6100000"
+        android:background="#D90A0000"
         android:orientation="vertical"
         android:padding="18dp">
 
@@ -154,17 +158,41 @@
         android:focusable="true"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/interludeText"
+        <com.china.fakeransom.FxBackgroundView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:tag="blue"/>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:fontFamily="monospace"
             android:gravity="center"
-            android:lineSpacingExtra="3dp"
-            android:text=""
-            android:textColor="#ffd700"
-            android:textSize="15sp"/>
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="220dp"
+                android:layout_height="2dp"
+                android:layout_marginBottom="28dp"
+                android:background="#66ffd700"/>
+
+            <TextView
+                android:id="@+id/interludeText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:lineSpacingExtra="3dp"
+                android:text=""
+                android:textColor="#ffd700"
+                android:textSize="15sp"/>
+
+            <View
+                android:layout_width="220dp"
+                android:layout_height="2dp"
+                android:layout_marginTop="28dp"
+                android:background="#66ffd700"/>
+        </LinearLayout>
     </FrameLayout>
 
     <View
@@ -180,6 +208,11 @@
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">
+
+        <com.china.fakeransom.FxBackgroundView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.7"/>
 
         <TextView
             android:id="@+id/rebootText"

@@ -99,6 +99,8 @@ active:
 | `REORDER_TASKS` | Pull the sim back over the home screen |
 | `WAKE_LOCK` | Keep the screen on |
 | `CAMERA` | Front-camera ghost preview behind the UI (no capture) |
+| `SET_WALLPAPER` | Apply the ransom image over home + lock wallpaper during the sim; the originals are captured first and put back on end |
+| `SYSTEM_ALERT_WINDOW` | Lock overlay from a foreground service (non-trapping: shade/power always reachable) |
 | `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` | List real photo/download **names** in the terminal (read-only) |
 | `READ_CONTACTS` | Show real contact names in the terminal (read-only) |
 | Device admin (`force-lock`) | `lockNow()` screen lock during the "RESTORE ACCESS" beat |

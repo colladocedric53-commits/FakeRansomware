@@ -219,6 +219,19 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
 
         setContentView(R.layout.activity_fake_ransom);
 
+        final Thread.UncaughtExceptionHandler previousHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+            try {
+                simulationActive = false;
+                SimUtil.setSimActive(false);
+                SimUtil.fullCleanup(FakeRansomActivity.this);
+            } catch (Throwable ignored) {
+            }
+            if (previousHandler != null) {
+                previousHandler.uncaughtException(t, e);
+            }
+        });
+
         audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
@@ -778,6 +791,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
 
     @Override
     public void surfaceCreated(@NonNull SurfaceHolder holder) {
+        if (camera != null) return;
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
             return;
