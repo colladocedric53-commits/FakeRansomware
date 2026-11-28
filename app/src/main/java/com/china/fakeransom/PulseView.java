@@ -9,8 +9,8 @@ import android.view.View;
 
 public class PulseView extends View {
 
-    private static final long PERIOD_MS = 1800;
-    private static final int RINGS = 3;
+    private static final long PERIOD_MS = 2200;
+    private static final int RINGS = 4;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Runnable ticker = new Runnable() {
         @Override
@@ -31,6 +31,7 @@ public class PulseView extends View {
     }
 
     private void init() {
+        paint.setStyle(Paint.Style.STROKE);
         postOnAnimation(ticker);
     }
 
@@ -39,16 +40,17 @@ public class PulseView extends View {
         super.onDraw(canvas);
         float cx = getWidth() / 2f;
         float cy = getHeight() / 2f;
-        float base = Math.min(getWidth(), getHeight()) * 0.30f;
+        float base = Math.min(getWidth(), getHeight()) * 0.38f;
         long t = SystemClock.uptimeMillis() % PERIOD_MS;
         for (int i = 0; i < RINGS; i++) {
             long phase = (t + i * PERIOD_MS / RINGS) % PERIOD_MS;
             float f = phase / (float) PERIOD_MS;
-            paint.setColor(0xFF2E9BD6);
-            paint.setAlpha((int) (140 * (1f - f)));
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(4f);
-            canvas.drawCircle(cx, cy, base + f * base * 1.6f, paint);
+            float radius = base + f * base * 1.5f;
+            int alpha = (int) (80 * (1f - f) * (1f - f));
+            paint.setColor(0xFF5599BB);
+            paint.setAlpha(alpha);
+            paint.setStrokeWidth(2f + 1.5f * (1f - f));
+            canvas.drawCircle(cx, cy, radius, paint);
         }
     }
 }

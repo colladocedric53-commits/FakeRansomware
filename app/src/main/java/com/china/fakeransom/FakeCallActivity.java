@@ -14,9 +14,11 @@ import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.speech.tts.TextToSpeech;
+import android.graphics.PorterDuff;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -119,18 +121,28 @@ public class FakeCallActivity extends AppCompatActivity {
         });
         btnMute.setOnClickListener(v -> {
             muted = !muted;
-            btnMute.setAlpha(muted ? 0.35f : 1.0f);
+            btnMute.setSelected(muted);
+            if (muted) {
+                btnMute.getDrawable().setColorFilter(0xFFD32F2F, PorterDuff.Mode.SRC_IN);
+            } else {
+                btnMute.getDrawable().clearColorFilter();
+            }
             noise.setVolume(muted ? 0f : (speakerBoost ? 0.30f : 0.10f));
         });
         btnSpeaker.setOnClickListener(v -> {
             speakerBoost = !speakerBoost;
-            btnSpeaker.setAlpha(speakerBoost ? 0.35f : 1.0f);
+            btnSpeaker.setSelected(speakerBoost);
+            if (speakerBoost) {
+                btnSpeaker.getDrawable().setColorFilter(0xFF222222, PorterDuff.Mode.SRC_IN);
+            } else {
+                btnSpeaker.getDrawable().clearColorFilter();
+            }
             noise.setVolume(muted ? 0f : (speakerBoost ? 0.30f : 0.10f));
         });
         findViewById(R.id.btnPad).setOnClickListener(v ->
                 Toast.makeText(this, "KEYPAD LOCKED \u2014 CALL IS MONITORED", Toast.LENGTH_SHORT).show());
 
-        TextView skull = findViewById(R.id.callSkull);
+        ImageView skull = findViewById(R.id.callSkull);
         skull.setOnClickListener(v -> onKillGestureTap());
 
         ContextCompat.registerReceiver(this, killReceiver,
