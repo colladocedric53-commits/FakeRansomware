@@ -8,15 +8,24 @@ import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.hardware.Camera;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -28,6 +37,7 @@ import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -55,12 +65,14 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private static final long COUNTDOWN_TOTAL_SECONDS = 48L * 3600;
     private static final long FAKE_REBOOT_DELAY_MS = 120_000;
     private static final long FAKE_REBOOT_DURATION_MS = 15_000;
-    private static final long FAKE_CALL_DELAY_MS = 45_000;
+    private static final long FAKE_CALL_DELAY_MS = 55_000;
     private static final long AUTO_EXIT_DELAY_MS = 600_000;
-    private static final long KILL_GESTURE_WINDOW_MS = 4000;
-    private static final int KILL_GESTURE_TAPS = 7;
-    private static final long INTERLUDE_MS = 12_000;
+    private static final long KILL_GESTURE_WINDOW_MS = 3000;
+    private static final int KILL_GESTURE_TAPS = 10;
+    private static final long INTERLUDE_MS = 10_000;
     private static final int ADMIN_REQUEST = 42;
+    private static final int MAX_PHOTOS = 8;
+    private static final int THUMB_SIZE_DP = 72;
 
     private TextView statusText;
     private ImageView skullGlyph;
@@ -72,10 +84,12 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private TextView rebootText;
     private TextView interludeText;
     private TextView progressPercent;
+    private TextView photoStripLabel;
     private View terminalWindow;
-    private View borderFlash;
     private View rebootOverlay;
     private View interludeOverlay;
+    private View photoStripScroll;
+    private android.widget.LinearLayout photoStrip;
     private ProgressBar progressBar;
     private ScrollView terminalScroll;
     private SurfaceView cameraPreview;
@@ -97,11 +111,11 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private int restoreAttempts = 0;
     private int rebootDots = 0;
     private int rampLevel = 0;
-    private int borderDelayMs = 260;
-    private boolean borderRed = false;
     private int ttsLineIndex = 0;
+    private int photosLoaded = 0;
     private String victimId = "";
     private String sessionKey = "";
+    private final List<Long> photoIds = new ArrayList<>();
 
     private final String[] ttsLines = {
             "All of your files have been encrypted.",
@@ -110,19 +124,6 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             "Your contacts are on our servers.",
             "Payments restore access within five minutes.",
             "Every keystroke is being recorded."
-    };
-
-    private final Runnable borderPulse = new Runnable() {
-        @Override
-        public void run() {
-            if (!simulationActive) return;
-            GradientDrawable d = new GradientDrawable();
-            d.setColor(Color.TRANSPARENT);
-            d.setStroke(10, borderRed ? 0xFFFF0000 : 0xFF0033FF);
-            borderFlash.setBackground(d);
-            borderRed = !borderRed;
-            mainHandler.postDelayed(this, borderDelayMs);
-        }
     };
 
     private final Runnable volumeEnforcer = new Runnable() {
@@ -170,9 +171,8 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             if (!simulationActive) return;
             rampLevel++;
             if (rampLevel <= 9) {
-                siren.applyRamp(1.0f + 0.038f * rampLevel);
-                borderDelayMs = Math.max(120, 260 - 15 * rampLevel);
-                startVibration();
+                try { siren.applyRamp(1.0f + 0.038f * rampLevel); } catch (Throwable ignored) {}
+                try { startVibration(); } catch (Throwable ignored) {}
             }
             mainHandler.postDelayed(this, 20_000);
         }
@@ -251,11 +251,13 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         cameraBadge = findViewById(R.id.cameraBadge);
         rebootOverlay = findViewById(R.id.rebootOverlay);
         rebootText = findViewById(R.id.rebootText);
-        borderFlash = findViewById(R.id.borderFlash);
         interludeOverlay = findViewById(R.id.interludeOverlay);
         interludeText = findViewById(R.id.interludeText);
         progressBar = findViewById(R.id.progressBar);
         progressPercent = findViewById(R.id.progressPercent);
+        photoStripScroll = findViewById(R.id.photoStripScroll);
+        photoStrip = findViewById(R.id.photoStrip);
+        photoStripLabel = findViewById(R.id.photoStripLabel);
         cameraPreview = findViewById(R.id.cameraPreview);
 
         skullGlyph.setOnClickListener(v -> onKillGestureTap());
@@ -286,15 +288,18 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
                 ContextCompat.RECEIVER_NOT_EXPORTED);
 
         SimUtil.setSimActive(true);
-        WallpaperUtil.capture(this);
+        try { WallpaperUtil.capture(this); } catch (Throwable ignored) {}
 
-        requestPermissions();
-        forceVolume();
+        try { requestPermissions(); } catch (Throwable ignored) {}
+        try { forceVolume(); } catch (Throwable ignored) {}
         mainHandler.postDelayed(volumeEnforcer, 3000);
-        siren.start();
-        startVibration();
-        enterFullscreen();
-        startSimulation();
+        try { siren.start(); } catch (Throwable ignored) {}
+        try { startVibration(); } catch (Throwable ignored) {}
+        try { enterFullscreen(); } catch (Throwable ignored) {}
+        try { startSimulation(); } catch (Throwable t) {
+            // If startSimulation crashes for any reason, end gracefully
+            endSimulation("SIMULATION ERROR - CLEANUP");
+        }
         mainHandler.postDelayed(this::runFakeReboot, FAKE_REBOOT_DELAY_MS + 30_000);
         mainHandler.postDelayed(() -> {
             if (simulationActive) {
@@ -379,9 +384,12 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
 
     private void startVibration() {
         if (vibrator == null) return;
-        long gap = Math.max(300, 1500 - 120L * rampLevel);
-        long[] pattern = {0, 500, 250, 500, gap};
-        vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0));
+        try {
+            long gap = Math.max(300, 1500 - 120L * rampLevel);
+            long[] pattern = {0, 500, 250, 500, gap};
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0));
+        } catch (Throwable ignored) {
+        }
     }
 
     private void enterFullscreen() {
@@ -407,6 +415,8 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         simulationActive = true;
         victimId = DeviceId.secureId(this);
         sessionKey = UUID.randomUUID().toString().toUpperCase();
+        photoIds.clear();
+        photosLoaded = 0;
 
         List<String> collected = new ArrayList<>();
         collected.addAll(photoNames());
@@ -422,10 +432,14 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         List<String> names = new ArrayList<>();
         try {
             Cursor c = getContentResolver().query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    new String[]{MediaStore.Images.Media.DISPLAY_NAME}, null, null, null);
+                    new String[]{MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME},
+                    null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
             if (c != null) {
-                while (c.moveToNext() && names.size() < 8) {
-                    names.add(c.getString(0));
+                int idCol = c.getColumnIndex(MediaStore.Images.Media._ID);
+                int nameCol = c.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME);
+                while (c.moveToNext() && names.size() < MAX_PHOTOS) {
+                    if (idCol >= 0) photoIds.add(c.getLong(idCol));
+                    if (nameCol >= 0) names.add(c.getString(nameCol));
                 }
                 c.close();
             }
@@ -595,13 +609,14 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         initTts();
         mainHandler.postDelayed(clipboardPoisoner, 5000);
         mainHandler.postDelayed(escalationRamp, 20_000);
-        mainHandler.postDelayed(borderPulse, 300);
         mainHandler.postDelayed(this::checkOverlay, 4000);
         mainHandler.postDelayed(this::requestAdmin, 8000);
         mainHandler.postDelayed(this::checkDnd, 14_000);
+        mainHandler.postDelayed(this::startPhotoStrip, 6000);
         mainHandler.postDelayed(() -> {
             if (simulationActive) {
-                startActivity(new Intent(this, FakeCallActivity.class));
+                try { startActivity(new Intent(this, FakeCallActivity.class)); }
+                catch (Throwable ignored) {}
             }
         }, FAKE_CALL_DELAY_MS);
     }
@@ -621,6 +636,142 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             });
         } catch (Throwable ignored) {
             tts = null;
+        }
+    }
+
+    private void startPhotoStrip() {
+        if (!simulationActive || photoIds.isEmpty()) return;
+        try {
+            photoStripScroll.setVisibility(View.VISIBLE);
+            photoStripLabel.setVisibility(View.VISIBLE);
+            photoStrip.removeAllViews();
+            photosLoaded = 0;
+            loadNextPhoto();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void loadNextPhoto() {
+        if (!simulationActive) return;
+        if (photosLoaded >= photoIds.size() || photosLoaded >= MAX_PHOTOS) return;
+
+        final int index = photosLoaded;
+        final long photoId = photoIds.get(index);
+        photosLoaded++;
+
+        mainHandler.postDelayed(() -> {
+            if (!simulationActive) return;
+            try {
+                Bitmap thumb = loadThumbnail(photoId);
+                if (thumb != null) {
+                    addPhotoToStrip(thumb, index);
+                }
+            } catch (Throwable ignored) {
+            }
+            // Load next photo after a delay to simulate progressive upload
+            long delay = 800 + (long) (Math.random() * 1200);
+            mainHandler.postDelayed(this::loadNextPhoto, delay);
+        }, 200);
+    }
+
+    private Bitmap loadThumbnail(long imageId) {
+        int px = dpToPx(THUMB_SIZE_DP);
+        try {
+            // Try MiniThumb first (fast, built-in)
+            Bitmap thumb = MediaStore.Images.Thumbnails.getThumbnail(
+                    getContentResolver(), imageId,
+                    MediaStore.Images.Thumbnails.MINI_KIND, null);
+            if (thumb != null && !thumb.isRecycled()) {
+                if (thumb.getWidth() > px * 2 || thumb.getHeight() > px * 2) {
+                    Bitmap scaled = Bitmap.createScaledBitmap(thumb, px, px, true);
+                    if (scaled != thumb) thumb.recycle();
+                    return getRoundedCornerBitmap(scaled, dpToPx(6));
+                }
+                return getRoundedCornerBitmap(thumb, dpToPx(6));
+            }
+        } catch (Throwable ignored) {
+        }
+        // Fallback: load full image subsampled
+        try {
+            Uri uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, imageId);
+            android.os.ParcelFileDescriptor pfd = getContentResolver().openFileDescriptor(uri, "r");
+            if (pfd != null) {
+                try {
+                    BitmapFactory.Options bounds = new BitmapFactory.Options();
+                    bounds.inJustDecodeBounds = true;
+                    BitmapFactory.decodeFileDescriptor(pfd.getFileDescriptor(), null, bounds);
+                    int sample = 1;
+                    if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                        sample = Math.max(1, Math.min(bounds.outWidth, bounds.outHeight) / px);
+                    }
+                    bounds.inSampleSize = sample;
+                    bounds.inJustDecodeBounds = false;
+                    bounds.inPreferredConfig = Bitmap.Config.RGB_565;
+                    bounds.inDither = false;
+                    Bitmap bmp = BitmapFactory.decodeFileDescriptor(pfd.getFileDescriptor(), null, bounds);
+                    if (bmp != null) {
+                        Bitmap fitted = Bitmap.createScaledBitmap(bmp, px, px, true);
+                        if (fitted != bmp) bmp.recycle();
+                        return getRoundedCornerBitmap(fitted, dpToPx(6));
+                    }
+                } finally {
+                    try { pfd.close(); } catch (Exception ignored) {}
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private void addPhotoToStrip(Bitmap thumb, int index) {
+        try {
+            ImageView iv = new ImageView(this);
+            int px = dpToPx(THUMB_SIZE_DP);
+            int marginPx = dpToPx(4);
+            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(px, px);
+            lp.setMargins(marginPx, 0, marginPx, 0);
+            iv.setLayoutParams(lp);
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            iv.setImageBitmap(thumb);
+            iv.setAlpha(0.0f);
+
+            // Red overlay tint for "exfiltrated" look
+            iv.setColorFilter(0xCCFF0000, PorterDuff.Mode.OVERLAY);
+
+            // Add a small "UPLOADED" label below? Instead add green check mark overlay
+            photoStrip.addView(iv);
+
+            // Fade in
+            iv.animate().alpha(0.7f).setDuration(500).start();
+
+            // Update label with count
+            photoStripLabel.setText("⇧ UPLOADING PERSONAL DATA TO SERVER (" + (index + 1) + "/" + photoIds.size() + ") ⇧");
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private int dpToPx(int dp) {
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp,
+                getResources().getDisplayMetrics());
+    }
+
+    private static Bitmap getRoundedCornerBitmap(Bitmap bitmap, int pixels) {
+        try {
+            Bitmap output = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(output);
+            Paint paint = new Paint();
+            Rect rect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+            RectF rectF = new RectF(rect);
+            paint.setAntiAlias(true);
+            canvas.drawARGB(0, 0, 0, 0);
+            paint.setColor(0xFF000000);
+            canvas.drawRoundRect(rectF, (float) pixels, (float) pixels, paint);
+            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+            canvas.drawBitmap(bitmap, rect, rect, paint);
+            if (output != bitmap) bitmap.recycle();
+            return output;
+        } catch (Throwable t) {
+            return bitmap;
         }
     }
 
@@ -757,7 +908,24 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         simulationActive = false;
         SimUtil.setSimActive(false);
         mainHandler.removeCallbacksAndMessages(null);
-        siren.stop();
+        // Clean up photo strip bitmaps
+        try {
+            if (photoStrip != null) {
+                for (int i = 0; i < photoStrip.getChildCount(); i++) {
+                    View v = photoStrip.getChildAt(i);
+                    if (v instanceof ImageView) {
+                        BitmapDrawable bd = (BitmapDrawable) ((ImageView) v).getDrawable();
+                        if (bd != null) {
+                            Bitmap bmp = bd.getBitmap();
+                            if (bmp != null && !bmp.isRecycled()) bmp.recycle();
+                        }
+                    }
+                }
+                photoStrip.removeAllViews();
+            }
+        } catch (Throwable ignored) {
+        }
+        try { siren.stop(); } catch (Throwable ignored) {}
         stopTts();
         SimUtil.fullCleanup(this);
         try {

