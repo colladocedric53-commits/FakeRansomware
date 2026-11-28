@@ -7,33 +7,85 @@
     <com.china.fakeransom.FxBackgroundView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:alpha="0.8"/>
+        android:alpha="0.7" />
 
-    <TextView
+    <!-- Center glow -->
+    <View
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_lock_glow" />
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_margin="26dp"
+        android:layout_margin="24dp"
         android:background="@drawable/bg_lock_border"
         android:gravity="center"
-        android:letterSpacing="0.06"
-        android:padding="26dp"
-        android:shadowColor="#ff0000"
-        android:shadowDx="0"
-        android:shadowDy="0"
-        android:shadowRadius="16"
-        android:text="DEVICE LOCKED\n\n daemon active — input restricted\n\nPress home again: it will bring you right back"
-        android:textColor="#ff2222"
-        android:textSize="26sp"
-        android:textStyle="bold"/>
+        android:orientation="vertical"
+        android:padding="28dp">
 
-    <TextView
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_lock"
+            android:alpha="0.9" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:letterSpacing="0.08"
+            android:shadowColor="#ff0000"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="20"
+            android:text="DEVICE LOCKED"
+            android:textColor="#ff2222"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-black" />
+
+        <View
+            android:layout_width="140dp"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="#55FF2222" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:text="daemon active — input restricted"
+            android:textColor="#cc4444"
+            android:textSize="13sp"
+            android:letterSpacing="0.05" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="monospace"
+            android:gravity="center"
+            android:text="Press home again: it will bring you right back"
+            android:textColor="#884444"
+            android:textSize="11sp"
+            android:letterSpacing="0.03" />
+    </LinearLayout>
+
+    <ImageView
         android:id="@+id/overlaySkull"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="start|top"
         android:layout_margin="16dp"
         android:alpha="0.25"
-        android:text="☠"
-        android:textColor="#ffffff"
-        android:textSize="14sp"/>
+        android:src="@drawable/ic_skull"
+        android:clickable="true"
+        android:contentDescription="Exit" />
 </FrameLayout>

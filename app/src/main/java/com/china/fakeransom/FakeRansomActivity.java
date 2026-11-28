@@ -33,7 +33,9 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -61,7 +63,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private static final int ADMIN_REQUEST = 42;
 
     private TextView statusText;
-    private TextView skullGlyph;
+    private ImageView skullGlyph;
     private TextView terminalText;
     private TextView countdownText;
     private TextView ransomNote;
@@ -69,11 +71,13 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private TextView cameraBadge;
     private TextView rebootText;
     private TextView interludeText;
-    private View terminalScroll;
+    private TextView progressPercent;
+    private View terminalWindow;
     private View borderFlash;
     private View rebootOverlay;
     private View interludeOverlay;
     private ProgressBar progressBar;
+    private ScrollView terminalScroll;
     private SurfaceView cameraPreview;
 
     private final SirenPlayer siren = SirenPlayer.get();
@@ -237,6 +241,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
 
         skullGlyph = findViewById(R.id.skullGlyph);
         statusText = findViewById(R.id.statusText);
+        terminalWindow = findViewById(R.id.terminalWindow);
         terminalScroll = findViewById(R.id.terminalScroll);
         terminalText = findViewById(R.id.terminalText);
         countdownText = findViewById(R.id.countdownText);
@@ -249,6 +254,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         interludeOverlay = findViewById(R.id.interludeOverlay);
         interludeText = findViewById(R.id.interludeText);
         progressBar = findViewById(R.id.progressBar);
+        progressPercent = findViewById(R.id.progressPercent);
         cameraPreview = findViewById(R.id.cameraPreview);
 
         skullGlyph.setOnClickListener(v -> onKillGestureTap());
@@ -478,17 +484,22 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private void terminalSchedule(List<String> lines) {
         statusText.setText("ENCRYPTING SYSTEM...");
         ransomNote.setVisibility(View.GONE);
-        terminalScroll.setVisibility(View.VISIBLE);
+        terminalWindow.setVisibility(View.VISIBLE);
         terminalText.setText("");
 
         for (int i = 0; i < lines.size(); i++) {
             final String line = lines.get(i);
             final int step = i + 1;
+            final int pct = (int) (step * 100 / (float) lines.size());
             final boolean last = (i == lines.size() - 1);
             mainHandler.postDelayed(() -> {
                 if (!simulationActive) return;
                 terminalText.append(line + "\n");
-                progressBar.setProgress((int) (step * 100 / (float) lines.size()));
+                terminalScroll.post(() -> terminalScroll.fullScroll(android.view.View.FOCUS_DOWN));
+                progressBar.setProgress(pct);
+                if (progressPercent != null) {
+                    progressPercent.setText(pct + "%");
+                }
                 if (last) {
                     mainHandler.postDelayed(this::showCompromisedScreen, 900);
                 }
@@ -498,8 +509,9 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
 
     private void showCompromisedScreen() {
         if (!simulationActive) return;
-        terminalScroll.setVisibility(View.GONE);
+        terminalWindow.setVisibility(View.GONE);
         progressBar.setVisibility(View.GONE);
+        if (progressPercent != null) progressPercent.setVisibility(View.GONE);
         interludeOverlay.setVisibility(View.VISIBLE);
         interludeText.setText("⚠ COMPUTER SECURITY RESPONSE ⚠\n\n"
                 + "This device was COMPROMISED.\n\n"
@@ -522,8 +534,9 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
         if (!simulationActive) return;
 
         statusText.setText("YOUR DEVICE IS LOCKED");
-        terminalScroll.setVisibility(View.GONE);
+        terminalWindow.setVisibility(View.GONE);
         progressBar.setVisibility(View.GONE);
+        if (progressPercent != null) progressPercent.setVisibility(View.GONE);
         interludeOverlay.setVisibility(View.GONE);
         ransomNote.setVisibility(View.VISIBLE);
 

@@ -2,7 +2,7 @@ name: Build Fake Ransomware APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, arena/59a1bb81-fakeransomware ]
   workflow_dispatch:
 
 jobs:
