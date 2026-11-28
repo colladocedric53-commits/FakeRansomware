@@ -118,6 +118,26 @@ public class PaymentActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        SimUtil.activityResumed();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        SimUtil.activityPaused();
+        handler.postDelayed(() -> {
+            if (isFinishing()) return;
+            try {
+                android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                am.moveTaskToFront(getTaskId(), android.app.ActivityManager.MOVE_TASK_WITH_HOME);
+            } catch (Throwable ignored) {
+            }
+        }, 1500);
+    }
+
+    @Override
     public void onBackPressed() {
         finish();
     }

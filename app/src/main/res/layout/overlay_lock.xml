@@ -2,33 +2,38 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="#DD000000"
+    android:clickable="true"
+    android:focusable="true">
 
     <com.china.fakeransom.FxBackgroundView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:alpha="0.7" />
+        android:alpha="0.85" />
 
-    <!-- Center glow -->
+    <!-- Center radial glow -->
     <View
-        android:layout_width="280dp"
-        android:layout_height="280dp"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
         android:layout_gravity="center"
         android:background="@drawable/bg_lock_glow" />
 
     <LinearLayout
+        android:id="@+id/lockPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_margin="24dp"
+        android:layout_margin="28dp"
         android:background="@drawable/bg_lock_border"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="28dp">
+        android:padding="30dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <ImageView
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
             android:src="@drawable/ic_lock"
             android:alpha="0.9" />
 
@@ -69,22 +74,26 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:fontFamily="monospace"
+            android:layout_marginTop="16dp"
             android:gravity="center"
-            android:text="Press home again: it will bring you right back"
-            android:textColor="#884444"
+            android:padding="10dp"
+            android:background="@drawable/bg_return_hint"
+            android:text="▶  TAP ANYWHERE TO RETURN  ◀"
+            android:textColor="#FFAA7744"
             android:textSize="11sp"
-            android:letterSpacing="0.03" />
+            android:letterSpacing="0.15"
+            android:textStyle="bold"
+            android:fontFamily="monospace" />
     </LinearLayout>
 
+    <!-- Hidden kill switch - small and in corner, hard to trigger accidentally -->
     <ImageView
         android:id="@+id/overlaySkull"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_gravity="start|top"
-        android:layout_margin="16dp"
-        android:alpha="0.25"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="end|bottom"
+        android:layout_margin="12dp"
+        android:alpha="0.12"
         android:src="@drawable/ic_skull"
         android:clickable="true"
         android:contentDescription="Exit" />

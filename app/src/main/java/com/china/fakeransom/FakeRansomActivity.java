@@ -90,6 +90,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     private boolean simulationActive = false;
     private boolean dndRequested = false;
     private boolean overlayRequested = false;
+    private boolean waitingForResult = false;
     private long secondsRemaining = COUNTDOWN_TOTAL_SECONDS;
     private long killGestureStart = 0;
     private int killTaps = 0;
@@ -305,8 +306,37 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (intent != null && intent.getBooleanExtra("KILL", false)) {
-            endSimulation("SIMULATION TERMINATED");
+        if (intent != null) {
+            if (intent.getBooleanExtra("KILL", false)) {
+                endSimulation("SIMULATION TERMINATED");
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        SimUtil.activityResumed();
+        waitingForResult = false;
+        if (!simulationActive) return;
+        if (Settings.canDrawOverlays(this)) {
+            try {
+                startService(new Intent(this, OverlayService.class));
+            } catch (Throwable ignored) {
+            }
+        }
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null && nm.isNotificationPolicyAccessGranted()) {
+            SimUtil.applyDndAlarmsOnly(this);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        SimUtil.activityPaused();
+        if (simulationActive && !waitingForResult) {
+            mainHandler.postDelayed(this::returnToFront, 1500);
         }
     }
 
@@ -328,6 +358,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             }
         }
         if (!missing.isEmpty()) {
+            waitingForResult = true;
             ActivityCompat.requestPermissions(this, missing.toArray(new String[0]), 1337);
         }
     }
@@ -599,11 +630,13 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             startService(new Intent(this, OverlayService.class));
         } else if (!overlayRequested) {
             overlayRequested = true;
+            waitingForResult = true;
             try {
                 Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         android.net.Uri.parse("package:" + getPackageName()));
                 startActivity(i);
             } catch (Throwable ignored) {
+                waitingForResult = false;
             }
         }
     }
@@ -616,26 +649,12 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             SimUtil.applyDndAlarmsOnly(this);
         } else {
             dndRequested = true;
+            waitingForResult = true;
             try {
                 startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));
             } catch (Throwable ignored) {
+                waitingForResult = false;
             }
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (!simulationActive) return;
-        if (Settings.canDrawOverlays(this)) {
-            try {
-                startService(new Intent(this, OverlayService.class));
-            } catch (Throwable ignored) {
-            }
-        }
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null && nm.isNotificationPolicyAccessGranted()) {
-            SimUtil.applyDndAlarmsOnly(this);
         }
     }
 
@@ -667,6 +686,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             return;
         }
         try {
+            waitingForResult = true;
             Intent i = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
             i.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin);
             i.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
@@ -674,6 +694,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
                             + "and restore access. Refusing may lock the terminal permanently.");
             startActivityForResult(i, ADMIN_REQUEST);
         } catch (Exception ignored) {
+            waitingForResult = false;
         }
     }
 
@@ -684,6 +705,7 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        waitingForResult = false;
         if (requestCode != ADMIN_REQUEST) return;
         DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
         ComponentName admin = new ComponentName(this, LockAdminReceiver.class);
@@ -775,14 +797,6 @@ public class FakeRansomActivity extends AppCompatActivity implements SurfaceHold
             ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
             am.moveTaskToFront(getTaskId(), ActivityManager.MOVE_TASK_WITH_HOME);
         } catch (Throwable ignored) {
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (simulationActive) {
-            mainHandler.postDelayed(this::returnToFront, 700);
         }
     }
 

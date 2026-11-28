@@ -15,6 +15,7 @@ final class SimUtil {
     private static final String PREFS = "sim_state";
     private static final String KEY_DND = "dnd_filter";
     private static volatile boolean simActive = false;
+    private static volatile int foregroundActivities = 0;
 
     private SimUtil() {
     }
@@ -25,6 +26,18 @@ final class SimUtil {
 
     static void setSimActive(boolean value) {
         simActive = value;
+    }
+
+    static void activityResumed() {
+        foregroundActivities++;
+    }
+
+    static void activityPaused() {
+        foregroundActivities = Math.max(0, foregroundActivities - 1);
+    }
+
+    static boolean isAppInForeground() {
+        return foregroundActivities > 0;
     }
 
     static SharedPreferences prefs(Context c) {
@@ -99,6 +112,7 @@ final class SimUtil {
 
     static void fullCleanup(Context c) {
         simActive = false;
+        foregroundActivities = 0;
         SirenPlayer.get().stop();
         killVibration(c);
         clearClipboard(c);

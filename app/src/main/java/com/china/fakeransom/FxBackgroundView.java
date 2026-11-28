@@ -25,18 +25,25 @@ public class FxBackgroundView extends View {
 
     public FxBackgroundView(Context context) {
         super(context);
-        postInvalidateDelayed(80);
     }
 
     public FxBackgroundView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        postInvalidateDelayed(80);
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         blue = "blue".equals(getTag());
+        postInvalidateDelayed(100);
+    }
+
+    @Override
+    protected void onVisibilityChanged(View changedView, int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
+        if (visibility == VISIBLE) {
+            postInvalidateDelayed(100);
+        }
     }
 
     @Override
